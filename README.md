@@ -1,7 +1,8 @@
 # fridump3 for palera1n jb
 I notice that both frida and the app freeze if a memory access violation occurs more than twice on palera1n jb (rootful, rootless).<br>
 So I updated the python code.
----
+
+
 # fridump3
 Fridump is an open source memory dumping tool, primarily aimed to penetration testers and developers. Fridump is using the Frida framework to dump accessible memory addresses from any platform supported. It can be used from a Windows, Linux or Mac OS X system to dump the memory of an iOS, Android or Windows application.
 

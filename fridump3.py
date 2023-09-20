@@ -1,3 +1,4 @@
+import platform
 import textwrap
 import frida
 import os
@@ -54,7 +55,7 @@ arguments = MENU()
 APP_NAME = utils.normalize_app_name(appName=arguments.process)
 DIRECTORY = ""
 USB = arguments.usb
-NETWORK=False
+NETWORK = False
 DEBUG_LEVEL = logging.INFO
 STRINGS = arguments.strings
 MAX_SIZE = 20971520
@@ -76,7 +77,7 @@ logging.basicConfig(format='%(levelname)s:%(message)s', level=DEBUG_LEVEL)
 session = None
 try:
     if USB:
-        session = frida.get_usb_device().attach(APP_NAME)
+        session = frida.get_usb_device(1).attach(APP_NAME)
     elif NETWORK:
         session = frida.get_device_manager().add_remote_device(IP).attach(APP_NAME)
     else:
@@ -107,26 +108,33 @@ mem_access_viol = ""
 
 print("Starting Memory dump...")
 
+
 def on_message(message, data):
     print("[on_message] message:", message, "data:", data)
 
 
-script = session.create_script("""'use strict';
+def read_frida_js_source(script_text):
+    # on Windows should open frida script with encoding option('cp949 issue')
+    with open(script_text, "r", encoding="UTF8") if platform.system() == "Windows" \
+            else open(script_text, "r") as f:
+        return f.read()
 
-rpc.exports = {
-  enumerateRanges: function (prot) {
-    return Process.enumerateRangesSync(prot);
-  },
-  readMemory: function (address, size) {
-    return Memory.readByteArray(ptr(address), size);
-  }
-};
-""")
+
+script = session.create_script(read_frida_js_source("script.js"))
 script.on("message", on_message)
 script.load()
 
-agent = script.exports
+agent = script.exports_sync
 ranges = agent.enumerate_ranges(PERMS)
+dumper.PLATFORM = agent.get_platform()
+dumper.IS_PALERA1N = agent.is_palera1n_jb()
+
+# filter out ranges that are not useful before performing the dump on iOS15+
+# also It can reduce the chance of memory access violation
+if dumper.PLATFORM == "darwin" and dumper.IS_PALERA1N:
+    ranges = [range_dict for range_dict in ranges if 'file' not in range_dict or all(substr not in range_dict['file']['path'] for substr in ["/System", "/MobileSubstrate/", "substitute", "substrate", "/private/preboot/", "/tmp/frida-", "/usr/share/icu"])]
+
+# print(ranges)
 
 if arguments.max_size is not None:
     MAX_SIZE = arguments.max_size
@@ -162,4 +170,6 @@ if STRINGS:
         utils.printProgress(i, l, prefix='Progress:',
                             suffix='Complete', bar=50)
 print("Finished!")
-#raw_input('Press Enter to exit...')
+script.unload()
+session.detach()
+# raw_input('Press Enter to exit...')

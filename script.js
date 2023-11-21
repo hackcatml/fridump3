@@ -6,7 +6,7 @@ rpc.exports = {
   },
   isPalera1nJb: function() {
     var access = new NativeFunction(Module.findExportByName(null, "access"), 'int', ['pointer', 'int'])
-    var path = Memory.allocUtf8String("/var/mobile/Library/palera1n/helper");
+    var path = Memory.allocUtf8String("/cores/binpack/Applications/palera1nLoader.app");
     isPalera1n = access(path, 0) === 0
     return isPalera1n;
   },
